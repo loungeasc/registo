@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registo Diário · Portal · Entrar</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <div class="login-card__brand">
+      <span class="login-card__mark">PSE</span>
+      <h1 id="app-title">Portal</h1>
+    </div>
+    <p class="login-card__subtitle">Inicia sessão para aceder às tuas ferramentas.</p>
+
+    <form id="login-form" class="login-form" novalidate>
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="username" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required />
+
+      <button type="submit" id="submit-btn">Entrar</button>
+      <p id="login-error" class="login-error" role="alert" hidden></p>
+      <p style="margin:14px 0 0;text-align:center;font-size:12.5px;color:#5f6b74;">
+        Esqueceste-te da palavra-passe? Pede a um administrador para a repor.
+      </p>
+    </form>
+  </main>
+
+  <script src="assets/supabase-js.umd.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/supabaseClient.js"></script>
+  <script>
+    document.getElementById('app-title').textContent = window.APP_NAME || 'Portal';
+    document.title = (window.APP_NAME || 'Portal') + ' · Entrar';
+
+    // Se já houver sessão ativa, avança logo para a homepage
+    (async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) window.location.href = 'registo.html';
+    })();
+
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('login-error');
+    const submitBtn = document.getElementById('submit-btn');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errorEl.hidden = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'A entrar…';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          console.error('Erro de login (Supabase):', error);
+          errorEl.textContent = 'Email ou password incorretos.';
+          errorEl.hidden = false;
+          return;
+        }
+
+        window.location.href = 'registo.html';
+      } catch (err) {
+        // Isto apanha falhas de rede/CORS/config, para nunca mais ficar
+        // preso em "A entrar…" sem explicação nenhuma.
+        console.error('Falha ao contactar o Supabase:', err);
+        errorEl.textContent =
+          'Não foi possível ligar ao Supabase. Abre a consola (F12) para ver o erro técnico.';
+        errorEl.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Entrar';
+      }
+    });
+
+  </script>
+</body>
+</html>

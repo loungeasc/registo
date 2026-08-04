@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <script>document.documentElement.style.visibility='hidden';</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Remanescentes · Registo Diário</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .reg-main { max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }
+    .reg-tabs { display: flex; gap: 8px; margin-bottom: 22px; }
+    .reg-tab {
+      border: 1px solid var(--color-border); background: var(--color-surface);
+      color: var(--color-text-muted); border-radius: 8px; padding: 9px 16px;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+    }
+    .reg-tab.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    .reg-panel { display: none; }
+    .reg-panel.active { display: block; }
+    .reg-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius); box-shadow: var(--shadow-card); padding: 22px;
+    }
+    .reg-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+    .reg-field { display: flex; flex-direction: column; gap: 5px; }
+    .reg-field label { font-size: 12.5px; font-weight: 500; color: var(--color-text-muted); }
+    .reg-field input, .reg-field select, .reg-field textarea {
+      font-family: var(--font-body); font-size: 15px; padding: 9px 11px;
+      border: 1px solid var(--color-border); border-radius: 8px;
+      background: var(--color-bg); color: var(--color-text);
+    }
+    .reg-field input:focus, .reg-field select:focus, .reg-field textarea:focus {
+      border-color: var(--color-primary-light); background: var(--color-surface); outline: none;
+    }
+    .prod-grid { display: grid; grid-template-columns: 1fr 110px; gap: 8px 12px; align-items: center; }
+    .prod-grid .prod-name { font-size: 14.5px; }
+    .prod-grid input {
+      font-family: var(--font-mono); font-size: 15px; text-align: right;
+      padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 8px;
+      background: var(--color-bg); width: 100%;
+    }
+    .prod-grid input:focus { border-color: var(--color-primary-light); background: var(--color-surface); outline: none; }
+    .prod-grid .filled { background: var(--color-primary-tint); border-color: var(--color-primary-light); }
+    .btn-primary {
+      background: var(--color-primary); color: #fff; border: none; border-radius: 8px;
+      padding: 11px 20px; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
+    .btn-primary:disabled { opacity: .6; cursor: default; }
+    .save-bar { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
+    .save-msg { font-size: 13.5px; }
+    .save-msg.ok { color: #1b7a4b; }
+    .save-msg.err { color: #b3261e; }
+    .day-status { font-size: 13px; color: var(--color-text-muted); margin-bottom: 16px; }
+    .day-status strong { color: var(--color-primary-darker); }
+    .oos-list { margin-top: 24px; }
+    .oos-list h3 { font-size: 14px; color: var(--color-text-muted); font-weight: 600; margin-bottom: 10px; }
+    .oos-item {
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+      border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 6px;
+      background: var(--color-surface); font-size: 14px;
+    }
+    .oos-item .hora { font-family: var(--font-mono); color: var(--color-primary); }
+    .oos-item .prod { font-weight: 600; flex: 1; }
+    .oos-item .coment { color: var(--color-text-muted); font-size: 13px; flex: 2; }
+    .oos-item .del {
+      border: none; background: none; color: #b3261e; cursor: pointer; font-size: 15px; padding: 4px;
+    }
+    .empty-note { font-size: 13.5px; color: var(--color-text-muted); }
+  </style>
+</head>
+<body>
+  <header id="portal-header" data-code="RMN" data-title="Remanescentes" data-subtitle="Registo Diário" data-back="none"></header>
+<script src="assets/header.js"></script>
+
+  <main class="reg-main">
+    <div class="reg-tabs">
+      <button class="reg-tab active" data-panel="panel-rem">Remanescentes do dia</button>
+      <button class="reg-tab" data-panel="panel-oos">Fim de Stock</button>
+    </div>
+
+    <!-- ══ Remanescentes ══ -->
+    <section id="panel-rem" class="reg-panel active">
+      <div class="reg-card">
+        <div class="reg-row">
+          <div class="reg-field">
+            <label for="rem-data">Dia</label>
+            <input type="date" id="rem-data" />
+          </div>
+          <div class="reg-field">
+            <label for="rem-extra">Entregas extra (3h30)</label>
+            <input type="number" id="rem-extra" min="0" step="1" value="0" style="width:110px" />
+          </div>
+        </div>
+        <p class="day-status" id="rem-status">A carregar…</p>
+        <div class="prod-grid" id="prod-grid"></div>
+        <div class="save-bar">
+          <button class="btn-primary" id="rem-save">Guardar dia</button>
+          <span class="save-msg" id="rem-msg"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ Fim de Stock ══ -->
+    <section id="panel-oos" class="reg-panel">
+      <div class="reg-card">
+        <div class="reg-row">
+          <div class="reg-field">
+            <label for="oos-data">Dia</label>
+            <input type="date" id="oos-data" />
+          </div>
+          <div class="reg-field" style="flex:1;min-width:200px">
+            <label for="oos-produto">Produto que esgotou</label>
+            <select id="oos-produto"></select>
+          </div>
+          <div class="reg-field">
+            <label for="oos-hora">Hora</label>
+            <input type="time" id="oos-hora" />
+          </div>
+        </div>
+        <div class="reg-row">
+          <div class="reg-field" style="flex:1">
+            <label for="oos-coment">Observações (opcional)</label>
+            <textarea id="oos-coment" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="save-bar">
+          <button class="btn-primary" id="oos-save">Registar</button>
+          <span class="save-msg" id="oos-msg"></span>
+        </div>
+        <div class="oos-list">
+          <h3>Registos do dia selecionado</h3>
+          <div id="oos-items"><p class="empty-note">—</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/supabase-js.umd.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/supabaseClient.js"></script>
+  <script>
+    let OPERADOR = '';
+    let PRODUTOS = [];
+
+    // ── Guarda: sessão + permissão 'remanescentes' ──
+    async function guard() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.replace('index.html'); return null; }
+
+      const { data: profile } = await supabaseClient
+        .from('profiles').select('full_name, role').eq('id', session.user.id).single();
+      if (!profile || !profile.role) { window.location.replace('index.html'); return null; }
+
+      const { data: perm } = await supabaseClient
+        .from('permissoes').select('permitido')
+        .eq('role', profile.role).eq('seccao', 'remanescentes').single();
+      if (!perm || !perm.permitido) { window.location.replace('index.html'); return null; }
+
+      OPERADOR = profile.full_name || session.user.email;
+      // O link para o dashboard so aparece ao admin
+      if (profile.role === 'admin') {
+        const dl = document.getElementById('dash-link'); if (dl) dl.hidden = false;
+      }
+      document.documentElement.style.visibility = 'visible';
+      return session;
+    }
+
+    function hoje() { return new Date().toISOString().slice(0, 10); }
+    function agora() {
+      const d = new Date();
+      return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+
+    // ── Tabs ──
+    document.querySelectorAll('.reg-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.reg-tab').forEach((t) => t.classList.remove('active'));
+        document.querySelectorAll('.reg-panel').forEach((p) => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.panel).classList.add('active');
+      });
+    });
+
+    // ── Produtos ──
+    async function loadProdutos() {
+      const { data, error } = await supabaseClient
+        .from('rem_produtos').select('nome').eq('ativo', true)
+        .order('ordem').order('nome');
+      if (error) throw error;
+      PRODUTOS = (data || []).map((p) => p.nome);
+
+      const grid = document.getElementById('prod-grid');
+      if (!PRODUTOS.length) {
+        grid.innerHTML = '<p class="empty-note" style="grid-column:1/-1">Ainda não há produtos configurados. Um administrador precisa de carregar o catálogo primeiro.</p>';
+      } else {
+        grid.innerHTML = PRODUTOS.map((p, i) =>
+          `<div class="prod-name">${p}</div>
+           <input type="number" min="0" step="1" inputmode="numeric" data-prod="${i}" placeholder="—" />`
+        ).join('');
+        grid.querySelectorAll('input').forEach((inp) => {
+          inp.addEventListener('input', () => inp.classList.toggle('filled', inp.value !== ''));
+        });
+      }
+
+      const sel = document.getElementById('oos-produto');
+      sel.innerHTML = PRODUTOS.map((p) => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    // ── Remanescentes: carregar dia ──
+    async function loadDia() {
+      const data = document.getElementById('rem-data').value;
+      const statusEl = document.getElementById('rem-status');
+      document.getElementById('rem-msg').textContent = '';
+
+      const { data: row, error } = await supabaseClient
+        .from('rem_diario').select('extra, valores, atualizado_por, updated_at')
+        .eq('data', data).maybeSingle();
+      if (error) { statusEl.textContent = 'Erro ao carregar o dia.'; return; }
+
+      const inputs = document.querySelectorAll('#prod-grid input');
+      if (row) {
+        document.getElementById('rem-extra').value = row.extra || 0;
+        inputs.forEach((inp) => {
+          const nome = PRODUTOS[+inp.dataset.prod];
+          const v = row.valores ? row.valores[nome] : undefined;
+          inp.value = v !== undefined && v !== null ? v : '';
+          inp.classList.toggle('filled', inp.value !== '');
+        });
+        const quando = row.updated_at ? new Date(row.updated_at).toLocaleString('pt-PT') : '';
+        statusEl.innerHTML = `Dia já registado por <strong>${row.atualizado_por || '—'}</strong> (${quando}). Podes corrigir e voltar a guardar.`;
+      } else {
+        document.getElementById('rem-extra').value = 0;
+        inputs.forEach((inp) => { inp.value = ''; inp.classList.remove('filled'); });
+        statusEl.innerHTML = 'Dia <strong>ainda sem registo</strong>. Preenche o remanescente de cada produto ao fim do dia.';
+      }
+    }
+
+    // ── Remanescentes: guardar ──
+    async function saveDia() {
+      const btn = document.getElementById('rem-save');
+      const msg = document.getElementById('rem-msg');
+      const data = document.getElementById('rem-data').value;
+      if (!data) { msg.textContent = 'Escolhe o dia.'; msg.className = 'save-msg err'; return; }
+
+      const valores = {};
+      let algum = false;
+      document.querySelectorAll('#prod-grid input').forEach((inp) => {
+        const nome = PRODUTOS[+inp.dataset.prod];
+        if (inp.value !== '') { valores[nome] = +inp.value; algum = true; }
+        else valores[nome] = 0;
+      });
+      if (!algum) { msg.textContent = 'Preenche pelo menos um produto.'; msg.className = 'save-msg err'; return; }
+
+      btn.disabled = true; msg.textContent = 'A guardar…'; msg.className = 'save-msg';
+      const { error } = await supabaseClient.from('rem_diario').upsert({
+        data,
+        extra: +document.getElementById('rem-extra').value || 0,
+        valores,
+        atualizado_por: OPERADOR,
+        updated_at: new Date().toISOString(),
+      });
+      btn.disabled = false;
+      if (error) { console.error(error); msg.textContent = 'Erro ao guardar.'; msg.className = 'save-msg err'; return; }
+      msg.textContent = '✓ Guardado.'; msg.className = 'save-msg ok';
+      loadDia();
+    }
+
+    // ── Fim de stock ──
+    async function loadOOS() {
+      const data = document.getElementById('oos-data').value;
+      const wrap = document.getElementById('oos-items');
+      const { data: rows, error } = await supabaseClient
+        .from('fim_stock').select('id, produto, hora, comentario, operador')
+        .eq('data', data).order('hora');
+      if (error) { wrap.innerHTML = '<p class="empty-note">Erro ao carregar.</p>'; return; }
+      if (!rows || !rows.length) { wrap.innerHTML = '<p class="empty-note">Sem registos neste dia.</p>'; return; }
+      wrap.innerHTML = rows.map((r) =>
+        `<div class="oos-item">
+           <span class="hora">${(r.hora || '—').slice(0, 5)}</span>
+           <span class="prod">${r.produto}</span>
+           <span class="coment">${r.comentario || ''}</span>
+           <button class="del" data-id="${r.id}" title="Apagar registo">✕</button>
+         </div>`
+      ).join('');
+      wrap.querySelectorAll('.del').forEach((b) => {
+        b.addEventListener('click', async () => {
+          if (!confirm('Apagar este registo de fim de stock?')) return;
+          await supabaseClient.from('fim_stock').delete().eq('id', +b.dataset.id);
+          loadOOS();
+        });
+      });
+    }
+
+    async function saveOOS() {
+      const btn = document.getElementById('oos-save');
+      const msg = document.getElementById('oos-msg');
+      const data = document.getElementById('oos-data').value;
+      const produto = document.getElementById('oos-produto').value;
+      const hora = document.getElementById('oos-hora').value;
+      if (!data || !produto || !hora) {
+        msg.textContent = 'Preenche dia, produto e hora.'; msg.className = 'save-msg err'; return;
+      }
+      btn.disabled = true; msg.textContent = 'A registar…'; msg.className = 'save-msg';
+      const { error } = await supabaseClient.from('fim_stock').insert({
+        data, produto, hora,
+        comentario: document.getElementById('oos-coment').value.trim() || null,
+        operador: OPERADOR,
+      });
+      btn.disabled = false;
+      if (error) { console.error(error); msg.textContent = 'Erro ao registar.'; msg.className = 'save-msg err'; return; }
+      msg.textContent = '✓ Registado.'; msg.className = 'save-msg ok';
+      document.getElementById('oos-coment').value = '';
+      document.getElementById('oos-hora').value = agora();
+      loadOOS();
+    }
+
+    // ── Init ──
+    (async function init() {
+      const session = await guard();
+      if (!session) return;
+      document.getElementById('rem-data').value = hoje();
+      document.getElementById('oos-data').value = hoje();
+      document.getElementById('oos-hora').value = agora();
+      try {
+        await loadProdutos();
+        await loadDia();
+        await loadOOS();
+      } catch (e) {
+        console.error(e);
+        document.getElementById('rem-status').textContent = 'Erro ao carregar dados iniciais.';
+      }
+      document.getElementById('rem-data').addEventListener('change', loadDia);
+      document.getElementById('oos-data').addEventListener('change', loadOOS);
+      document.getElementById('rem-save').addEventListener('click', saveDia);
+      document.getElementById('oos-save').addEventListener('click', saveOOS);
+    })();
+  </script>
+<script src="assets/account.js"></script>
+</body>
+</html>
