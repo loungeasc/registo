@@ -20,13 +20,26 @@
     }
 
     .reg-main { max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }
-    .reg-tabs { display: flex; gap: 8px; margin-bottom: 22px; }
+    .reg-tabs-label { font-size: 13px; font-weight: 600; color: var(--color-text-muted);
+      margin: 0 0 8px; letter-spacing: .02em; }
+    .reg-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 22px;
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: 12px; padding: 5px; box-shadow: 0 1px 3px rgba(15,40,60,.06); }
     .reg-tab {
-      border: 1px solid var(--color-border); background: var(--color-surface);
-      color: var(--color-text-muted); border-radius: 8px; padding: 9px 16px;
-      font-size: 14px; font-weight: 500; cursor: pointer;
+      border: none; background: none; color: var(--color-text-muted);
+      border-radius: 8px; padding: 12px 10px; font-size: 15px; font-weight: 600;
+      cursor: pointer; text-align: center; transition: all .15s;
     }
-    .reg-tab.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    .reg-tab:hover:not(.active) { color: var(--color-text); background: rgba(0,0,0,.04); }
+    .reg-tab.active { background: var(--color-primary); color: #fff;
+      box-shadow: 0 2px 6px rgba(15,60,90,.25); }
+    .reg-row .reg-field input {
+      height: 48px !important; min-height: 48px; box-sizing: border-box;
+      -webkit-appearance: none; appearance: none; display: block; width: 100%;
+      line-height: normal;
+    }
+    .reg-row .reg-field { flex: 1; min-width: 140px; }
+    .reg-row .reg-field input[type="number"] { width: 100% !important; }
     .reg-panel { display: none; }
     .reg-panel.active { display: block; }
     .reg-card {
@@ -79,13 +92,28 @@
       border: none; background: none; color: #b3261e; cursor: pointer; font-size: 15px; padding: 4px;
     }
     .empty-note { font-size: 13.5px; color: var(--color-text-muted); }
-  </style>
+  
+    /* Popup de confirmação */
+    #ok-overlay { position: fixed; inset: 0; background: rgba(15,30,40,.5);
+      display: none; align-items: center; justify-content: center; z-index: 700; padding: 20px; }
+    #ok-overlay.show { display: flex; }
+    .ok-box { background: #fff; border-radius: 16px; padding: 30px 26px 24px;
+      width: min(92vw, 360px); text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.28); }
+    .ok-icon { width: 58px; height: 58px; border-radius: 50%; background: #e6f6ec;
+      color: #1a7f37; font-size: 30px; line-height: 58px; margin: 0 auto 14px; }
+    .ok-title { font-size: 17px; font-weight: 700; color: var(--color-text); margin: 0 0 6px; }
+    .ok-text { font-size: 14px; color: var(--color-text-muted); margin: 0 0 20px; }
+    .ok-btn { width: 100%; border: none; border-radius: 10px; padding: 13px 0;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      background: var(--color-primary); color: #fff; }
+</style>
 </head>
 <body>
   <header id="portal-header" data-code="RMN" data-title="Remanescentes" data-subtitle="Registo Diário" data-back="none"></header>
 <script src="assets/header.js"></script>
 
   <main class="reg-main">
+    <p class="reg-tabs-label">Seleciona uma das opções:</p>
     <div class="reg-tabs">
       <button class="reg-tab active" data-panel="panel-rem">Remanescentes do dia</button>
       <button class="reg-tab" data-panel="panel-oos">Fim de Stock</button>
@@ -100,8 +128,8 @@
             <input type="date" id="rem-data" />
           </div>
           <div class="reg-field">
-            <label for="rem-extra">Entregas extra (3h30)</label>
-            <input type="number" id="rem-extra" min="0" step="1" value="0" style="width:110px" />
+            <label for="rem-extra">Entregas extra</label>
+            <input type="number" id="rem-extra" min="0" step="1" value="0" />
           </div>
         </div>
         <p class="day-status" id="rem-status">A carregar…</p>
@@ -148,6 +176,14 @@
     </section>
   </main>
 
+  <div id="ok-overlay" role="alertdialog" aria-modal="true">
+    <div class="ok-box">
+      <div class="ok-icon">✓</div>
+      <p class="ok-title" id="ok-title">Gravado com sucesso</p>
+      <p class="ok-text" id="ok-text"></p>
+      <button class="ok-btn" id="ok-btn" type="button">OK</button>
+    </div>
+  </div>
   <script src="assets/supabase-js.umd.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/supabaseClient.js"></script>
@@ -275,6 +311,7 @@
       btn.disabled = false;
       if (error) { console.error(error); msg.textContent = 'Erro ao guardar.'; msg.className = 'save-msg err'; return; }
       msg.textContent = '✓ Guardado.'; msg.className = 'save-msg ok';
+      showOk('Gravado com sucesso', `Remanescentes do dia ${new Date(data + 'T00:00:00').toLocaleDateString('pt-PT')} registados.`);
       loadDia();
     }
 
@@ -322,10 +359,23 @@
       btn.disabled = false;
       if (error) { console.error(error); msg.textContent = 'Erro ao registar.'; msg.className = 'save-msg err'; return; }
       msg.textContent = '✓ Registado.'; msg.className = 'save-msg ok';
+      showOk('Registado com sucesso', `Fim de stock de ${produto} às ${hora} gravado.`);
       document.getElementById('oos-coment').value = '';
       document.getElementById('oos-hora').value = agora();
       loadOOS();
     }
+
+
+    // ── Popup de confirmação ──
+    function showOk(titulo, texto) {
+      document.getElementById('ok-title').textContent = titulo;
+      document.getElementById('ok-text').textContent = texto || '';
+      document.getElementById('ok-overlay').classList.add('show');
+      document.getElementById('ok-btn').focus();
+    }
+    function showOkInit(){ document.getElementById('ok-btn').addEventListener('click', () => {
+      document.getElementById('ok-overlay').classList.remove('show');
+    }); }
 
     // ── Init ──
     (async function init() {
@@ -344,6 +394,7 @@
       }
       document.getElementById('rem-data').addEventListener('change', loadDia);
       document.getElementById('oos-data').addEventListener('change', loadOOS);
+      showOkInit();
       document.getElementById('rem-save').addEventListener('click', saveDia);
       document.getElementById('oos-save').addEventListener('click', saveOOS);
     })();
